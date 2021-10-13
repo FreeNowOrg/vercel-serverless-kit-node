@@ -21,9 +21,9 @@ export class HandleResponse {
         : 'prod'
   }
 
-  send(code: number, message: string, body = {} as any, custom?: any) {
-    return this.res.status(code).send({
-      code,
+  send(status: number, message: string, body = {} as any, custom?: any) {
+    return this.res.status(status).send({
+      status,
       message,
       devMode: this._env === 'dev' ? true : undefined,
       ping: this._debug ? { start: this._start, end: Date.now() } : undefined,
