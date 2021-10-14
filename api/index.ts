@@ -2,14 +2,16 @@ import { HandeleRouter } from '../src/modules/HandleRouter'
 
 const router = new HandeleRouter()
 
-router.beforeEach(async (ctx) => {
+router.beforeEach<{
+  db: string
+}>(async ctx => {
   console.log('db instance connected')
-  await new Promise((i) => setTimeout(i, 100))
+  await new Promise(i => setTimeout(i, 100))
   ctx.db = 'DATABASE'
 })
 
-router.afterEach(async (ctx) => {
-  await new Promise((i) => setTimeout(i, 100))
+router.afterEach(async ctx => {
+  await new Promise(i => setTimeout(i, 100))
   console.log('db instance closed')
 })
 
@@ -21,13 +23,16 @@ router
   .path('a')
   .path(['b', 'B'])
   .path(/.+/, 'keyInfo')
-  .check(() => {
-    console.log('specific chech 1')
+  .check<{
+    foo: string
+  }>(ctx => {
+    console.log('specific check 1')
+    ctx.foo = 'bar'
   })
   .check(() => {
-    console.log('specific chech 2')
+    console.log('specific chechk2')
   })
-  .action((ctx) => {
+  .action(ctx => {
     ctx.message = 'hello, world'
     ctx.body = {
       keyInfo: ctx.params.keyInfo,

@@ -1,14 +1,14 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { HandleResponse } from '..'
 
-export class HandeleRouter {
+export class HandeleRouter<ContextT = ContextDefaults> {
   private _routeList: Route[] = []
   init: (req: VercelRequest, res: VercelResponse) => Promise<void>
-  private handleSend: (ctx: Context) => any
+  private handleSend: (ctx: ContextT) => any
   private handleNotFound: () => any
-  private handleError: (ctx: Context, error: unknown) => any
-  private _afterList: Action[] = []
-  private _beforeList: Action[] = []
+  private handleError: (ctx: ContextT, error: unknown) => any
+  private _afterList: Middware<any>[] = []
+  private _beforeList: Middware<any>[] = []
   private _endpoint: string | RegExp = /^\/api\/?/
   http!: HandleResponse
 
@@ -18,7 +18,7 @@ export class HandeleRouter {
       this._runInit(req, res)
 
     // Default handlers
-    this.handleSend = (ctx) => {
+    this.handleSend = ctx => {
       this.http.send(
         ctx.status || 200,
         ctx.message || 'ok',
@@ -39,7 +39,7 @@ export class HandeleRouter {
     }
   }
 
-  addRoute(): Route {
+  addRoute(): Route<ContextT> {
     const route = new Route()
     route.endpoint(this._endpoint)
     this._routeList.unshift(route)
@@ -59,7 +59,7 @@ export class HandeleRouter {
 
     let isMatched = false
     for (const route of this._routeList) {
-      this._beforeList.forEach((i) => route.check(i, true))
+      this._beforeList.forEach(i => route.check(i, true))
 
       const { matched, ctx } = await route.init(req, res)
 
@@ -88,72 +88,49 @@ export class HandeleRouter {
    * (ctx) => ctx.http.send(ctx.status, ctx.message, ctx.body)
    * ```
    */
-  done(handler: (ctx: Context) => void) {
+  done(handler: (ctx: ContextDefaults) => void) {
     this.handleSend = handler
   }
 
   /**
    * @desc Define the error handler
    */
-  fail(handler: (ctx: Context) => void) {
+  fail(handler: (ctx: ContextDefaults) => void) {
     this.handleError = handler
   }
 
-  beforeEach(callback: Action) {
+  beforeEach<T = {}>(
+    callback: Middware<ContextT & T>
+  ): HandleResponse<ContextT & T> {
     this._beforeList.unshift(callback)
     return this
   }
 
-  afterEach(callback: Action) {
+  afterEach<T = {}>(
+    callback: Middware<ContextT & T>
+  ): HandleResponse<ContextT & T> {
     this._afterList.push(callback)
     return this
   }
 }
 
-type Method =
-  | 'GET'
-  | 'DELETE'
-  | 'HEAD'
-  | 'OPTIONS'
-  | 'POST'
-  | 'PUT'
-  | 'PATCH'
-  | 'PURGE'
-  | 'LINK'
-  | 'UNLINK'
-
-type Context = {
-  req: VercelRequest
-  res: VercelResponse
-  params: Record<string, string>
-  status: number
-  message: string
-  body: any
-  customBody?: any
-} & Record<string, any>
-
-type Awaitable<T> = Promise<T> | T
-
-type Action = (ctx: Context) => Awaitable<false | any>
-
-type Path = string | string[] | RegExp
-
-class Route {
+class Route<ContextT = ContextDefaults> {
   private _method: Method = 'GET'
   private _pathList: { name?: string; checker: Path }[] = []
-  private _action: Action | undefined
-  private _checkList: Action[] = []
+  private _action: Middware<ContextT> | undefined
+  private _checkList: Middware<ContextT>[] = []
+  private _endpoint: string | RegExp = /^\/api\/?/
   http!: HandleResponse
 
   // 初始化 Context
-  public ctx: Context = {} as Context
-  private _endpoint: string | RegExp = /^\/api\/?/
+  public ctx = {
+    status: 200,
+    message: '',
+    params: {},
+    body: {},
+  } as ContextDefaults & ContextT & Record<string, unknown>
 
-  constructor() {
-    this.ctx.params = {}
-    this.ctx.status = 200
-    this.ctx.message = ''
-  }
+  constructor() {}
 
   /**
    * @param path e.g. `"/api/foo"` or `/^\/api\/(foo|bar)\/?/`
@@ -181,7 +158,10 @@ class Route {
     return this
   }
 
-  check(callback: Action, prepend?: boolean) {
+  check<T = {}>(
+    callback: Middware<ContextT & T>,
+    prepend?: boolean
+  ): Route<ContextT & T> {
     if (!prepend) {
       this._checkList.push(callback)
     } else {
@@ -190,7 +170,7 @@ class Route {
     return this
   }
 
-  action(callback: Action) {
+  action<T = {}>(callback: Middware<ContextT & T>) {
     this._action = callback
     return this
   }
@@ -198,7 +178,7 @@ class Route {
   async init(
     req: VercelRequest,
     res: VercelResponse
-  ): Promise<{ matched: boolean; ctx: Context }> {
+  ): Promise<{ matched: boolean; ctx: ContextDefaults }> {
     this.ctx.req = req
     this.ctx.res = res
 
@@ -277,3 +257,31 @@ class Route {
     return true
   }
 }
+
+type Method =
+  | 'GET'
+  | 'DELETE'
+  | 'HEAD'
+  | 'OPTIONS'
+  | 'POST'
+  | 'PUT'
+  | 'PATCH'
+  | 'PURGE'
+  | 'LINK'
+  | 'UNLINK'
+
+type ContextDefaults = {
+  req: VercelRequest
+  res: VercelResponse
+  params: Record<string, string>
+  status: number
+  message: string
+  body: any
+  customBody?: any
+}
+
+type Awaitable<T> = Promise<T> | T
+
+type Middware<T> = (ctx: T) => Awaitable<false | any>
+
+type Path = string | string[] | RegExp
