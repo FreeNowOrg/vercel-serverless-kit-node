@@ -4,9 +4,12 @@ import { HandleResponse } from '..'
 export class HandeleRouter<ContextT = ContextDefaults> {
   private _routeList: Route[] = []
   init: (req: VercelRequest, res: VercelResponse) => Promise<void>
-  private handleSend: (ctx: ContextT) => any
+  private handleSend: (ctx: ContextDefaults & ContextDefaults) => any
   private handleNotFound: () => any
-  private handleError: (ctx: ContextT, error: unknown) => any
+  private handleError: (
+    ctx: ContextDefaults & ContextDefaults,
+    error: unknown
+  ) => any
   private _afterList: Middware<any>[] = []
   private _beforeList: Middware<any>[] = []
   private _endpoint: string | RegExp = /^\/api\/?/
@@ -39,7 +42,7 @@ export class HandeleRouter<ContextT = ContextDefaults> {
     }
   }
 
-  addRoute(): Route<ContextT> {
+  addRoute(): Route<ContextDefaults & ContextDefaults> {
     const route = new Route()
     route.endpoint(this._endpoint)
     this._routeList.unshift(route)
@@ -101,24 +104,24 @@ export class HandeleRouter<ContextT = ContextDefaults> {
 
   beforeEach<T = {}>(
     callback: Middware<ContextT & T>
-  ): HandleResponse<ContextT & T> {
+  ): HandeleRouter<ContextDefaults & ContextT & T> {
     this._beforeList.unshift(callback)
     return this
   }
 
   afterEach<T = {}>(
     callback: Middware<ContextT & T>
-  ): HandleResponse<ContextT & T> {
+  ): HandeleRouter<ContextDefaults & ContextT & T> {
     this._afterList.push(callback)
     return this
   }
 }
 
-class Route<ContextT = ContextDefaults> {
+class Route<ContextT extends any = ContextDefaults> {
   private _method: Method = 'GET'
   private _pathList: { name?: string; checker: Path }[] = []
-  private _action: Middware<ContextT> | undefined
-  private _checkList: Middware<ContextT>[] = []
+  private _action: Middware<any> | undefined
+  private _checkList: Middware<any>[] = []
   private _endpoint: string | RegExp = /^\/api\/?/
   http!: HandleResponse
 
@@ -128,7 +131,7 @@ class Route<ContextT = ContextDefaults> {
     message: '',
     params: {},
     body: {},
-  } as ContextDefaults & ContextT & Record<string, unknown>
+  } as ContextDefaults & ContextT
 
   constructor() {}
 
@@ -161,18 +164,20 @@ class Route<ContextT = ContextDefaults> {
   check<T = {}>(
     callback: Middware<ContextT & T>,
     prepend?: boolean
-  ): Route<ContextT & T> {
+  ): Route<ContextDefaults & ContextT & T> {
     if (!prepend) {
       this._checkList.push(callback)
     } else {
       this._checkList.unshift(callback)
     }
-    return this
+    return this as Route<ContextDefaults & ContextT & T>
   }
 
-  action<T = {}>(callback: Middware<ContextT & T>) {
+  action<T = {}>(
+    callback: Middware<ContextT & T>
+  ): Route<ContextDefaults & ContextT & T> {
     this._action = callback
-    return this
+    return this as Route<ContextDefaults & ContextT & T>
   }
 
   async init(
@@ -282,6 +287,6 @@ type ContextDefaults = {
 
 type Awaitable<T> = Promise<T> | T
 
-type Middware<T> = (ctx: T) => Awaitable<false | any>
+type Middware<T> = (ctx: ContextDefaults & T) => Awaitable<false | any>
 
 type Path = string | string[] | RegExp

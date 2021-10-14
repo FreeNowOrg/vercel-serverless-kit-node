@@ -1,13 +1,14 @@
 import { HandeleRouter } from '../src/modules/HandleRouter'
+import { MongoClient } from 'mongodb'
 
-const router = new HandeleRouter()
+const router = new HandeleRouter<{
+  db: MongoClient
+}>()
 
-router.beforeEach<{
-  db: string
-}>(async ctx => {
+router.beforeEach(async ctx => {
   console.log('db instance connected')
   await new Promise(i => setTimeout(i, 100))
-  ctx.db = 'DATABASE'
+  ctx.db = new MongoClient('mongodb://localhost')
 })
 
 router.afterEach(async ctx => {
@@ -15,7 +16,7 @@ router.afterEach(async ctx => {
   console.log('db instance closed')
 })
 
-router.endpoint('api/config/')
+router.endpoint('/api')
 
 router
   .addRoute()
@@ -36,7 +37,6 @@ router
     ctx.message = 'hello, world'
     ctx.body = {
       keyInfo: ctx.params.keyInfo,
-      db: ctx.db,
     }
   })
 
