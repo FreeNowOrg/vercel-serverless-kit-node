@@ -9,6 +9,7 @@ export class HandeleRouter {
   private handleError: (ctx: Context, error: unknown) => any
   private _afterList: Action[] = []
   private _beforeList: Action[] = []
+  private _endpoint: string | RegExp = /^\/api\/?/
   http!: HandleResponse
 
   constructor() {
@@ -38,10 +39,19 @@ export class HandeleRouter {
     }
   }
 
-  addRoute() {
+  addRoute(): Route {
     const route = new Route()
+    route.endpoint(this._endpoint)
     this._routeList.unshift(route)
     return route
+  }
+
+  /**
+   * @param path e.g. `"/api/foo"` or `/^\/api\/(foo|bar)\/?/`
+   */
+  endpoint(path: string | RegExp) {
+    this._endpoint = path
+    return this
   }
 
   private async _runInit(req: VercelRequest, res: VercelResponse) {
@@ -49,7 +59,7 @@ export class HandeleRouter {
 
     let isMatched = false
     for (const route of this._routeList) {
-      this._beforeList.reverse().forEach((a) => route.check(a, true))
+      this._beforeList.forEach((i) => route.check(i, true))
 
       const { matched, ctx } = await route.init(req, res)
 
@@ -74,6 +84,9 @@ export class HandeleRouter {
 
   /**
    * @desc Define the send handler
+   * @example ```ts
+   * (ctx) => ctx.http.send(ctx.status, ctx.message, ctx.body)
+   * ```
    */
   done(handler: (ctx: Context) => void) {
     this.handleSend = handler
@@ -87,7 +100,7 @@ export class HandeleRouter {
   }
 
   beforeEach(callback: Action) {
-    this._beforeList.push(callback)
+    this._beforeList.unshift(callback)
     return this
   }
 
@@ -126,20 +139,35 @@ type Action = (ctx: Context) => Awaitable<false | any>
 type Path = string | string[] | RegExp
 
 class Route {
-  private _method: Method | '' = ''
+  private _method: Method = 'GET'
   private _pathList: { name?: string; checker: Path }[] = []
   private _action: Action | undefined
   private _checkList: Action[] = []
-  private _afterList: Action[] = []
   http!: HandleResponse
 
   // 初始化 Context
   public ctx: Context = {} as Context
+  private _endpoint: string | RegExp = /^\/api\/?/
 
   constructor() {
     this.ctx.params = {}
     this.ctx.status = 200
     this.ctx.message = ''
+  }
+
+  /**
+   * @param path e.g. `"/api/foo"` or `/^\/api\/(foo|bar)\/?/`
+   */
+  endpoint(path: string | RegExp) {
+    if (typeof path === 'string') {
+      this._endpoint = new RegExp(
+        `/${path.replace(/^\//g, '').replace(/\/$/g, '')}`
+      )
+    } else {
+      this._endpoint = path
+    }
+
+    return this
   }
 
   method(m: Method) {
@@ -195,16 +223,22 @@ class Route {
   private _matchPath() {
     const url = this.ctx.req.url as string
     const paths = url
-      .split(/\/api\/?/)
+      .split(this._endpoint)
       .pop()
       ?.split('?')
       .shift()
+      ?.replace(/^\//g, '')
+      .replace(/\/$/g, '')
       ?.split('/') as string[]
 
     let isOk = true
-    paths.forEach((item, index) => {
-      const checker = this._pathList[index].checker
+
+    if (paths.length !== this._pathList.length) return false
+
+    for (let index = 0; index < paths.length; index++) {
+      const item = paths[index]
       const name = this._pathList[index].name
+      const checker = this._pathList[index].checker
 
       if (typeof checker === 'string') {
         isOk = checker === item
@@ -214,8 +248,14 @@ class Route {
         isOk = checker.test(item)
       }
 
-      if (name && isOk) this.ctx.params[name] = item
-    })
+      if (!isOk) {
+        break
+      }
+
+      if (name) {
+        this.ctx.params[name] = item
+      }
+    }
 
     return isOk
   }

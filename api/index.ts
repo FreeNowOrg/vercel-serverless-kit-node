@@ -13,6 +13,8 @@ router.afterEach(async (ctx) => {
   console.log('db instance closed')
 })
 
+router.endpoint('api/config/')
+
 router
   .addRoute()
   .method('GET')
