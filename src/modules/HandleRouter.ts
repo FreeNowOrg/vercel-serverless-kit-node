@@ -1,17 +1,17 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { HandleResponse } from '..'
 
-export class HandeleRouter<ContextT extends any = ContextDefaults> {
+export class HandeleRouter<ContextT extends any = RouteContextDefaults> {
   private _routeList: Route[] = []
   init: (req: VercelRequest, res: VercelResponse) => Promise<void>
-  private handleSend: (ctx: ContextDefaults & ContextDefaults) => any
+  private handleSend: (ctx: RouteContextDefaults & RouteContextDefaults) => any
   private handleNotFound: () => any
   private handleError: (
-    ctx: ContextDefaults & ContextDefaults,
+    ctx: RouteContextDefaults & RouteContextDefaults,
     error: unknown
   ) => any
-  private _afterList: Middware<any>[] = []
-  private _beforeList: Middware<any>[] = []
+  private _afterList: RouteMiddware<any>[] = []
+  private _beforeList: RouteMiddware<any>[] = []
   private _endpoint: string | RegExp = /^\/api\/?/
   http!: HandleResponse
 
@@ -42,8 +42,8 @@ export class HandeleRouter<ContextT extends any = ContextDefaults> {
     }
   }
 
-  addRoute(): Route<ContextDefaults & ContextT> {
-    const route: Route<ContextDefaults & ContextT> = new Route()
+  addRoute(): Route<RouteContextDefaults & ContextT> {
+    const route: Route<RouteContextDefaults & ContextT> = new Route()
     route.endpoint(this._endpoint)
     this._routeList.unshift(route)
     return route
@@ -91,37 +91,37 @@ export class HandeleRouter<ContextT extends any = ContextDefaults> {
    * (ctx) => ctx.http.send(ctx.status, ctx.message, ctx.body)
    * ```
    */
-  done(handler: (ctx: ContextDefaults) => void) {
+  done(handler: (ctx: RouteContextDefaults) => void) {
     this.handleSend = handler
   }
 
   /**
    * @desc Define the error handler
    */
-  fail(handler: (ctx: ContextDefaults) => void) {
+  fail(handler: (ctx: RouteContextDefaults) => void) {
     this.handleError = handler
   }
 
   beforeEach<T = {}>(
-    callback: Middware<ContextT & T>
-  ): HandeleRouter<ContextDefaults & ContextT & T> {
+    callback: RouteMiddware<ContextT & T>
+  ): HandeleRouter<RouteContextDefaults & ContextT & T> {
     this._beforeList.unshift(callback)
-    return this as HandeleRouter<ContextDefaults & ContextT & T>
+    return this as HandeleRouter<RouteContextDefaults & ContextT & T>
   }
 
   afterEach<T = {}>(
-    callback: Middware<ContextT & T>
-  ): HandeleRouter<ContextDefaults & ContextT & T> {
+    callback: RouteMiddware<ContextT & T>
+  ): HandeleRouter<RouteContextDefaults & ContextT & T> {
     this._afterList.push(callback)
-    return this as HandeleRouter<ContextDefaults & ContextT & T>
+    return this as HandeleRouter<RouteContextDefaults & ContextT & T>
   }
 }
 
-class Route<ContextT extends any = ContextDefaults> {
-  private _method: Method = 'GET'
-  private _pathList: { name?: string; checker: Path }[] = []
-  private _action: Middware<any> | undefined
-  private _checkList: Middware<any>[] = []
+export class Route<ContextT extends any = RouteContextDefaults> {
+  private _method: RouteMethod = 'GET'
+  private _pathList: { name?: string; checker: RoutePath }[] = []
+  private _action: RouteMiddware<any> | undefined
+  private _checkList: RouteMiddware<any>[] = []
   private _endpoint: string | RegExp = /^\/api\/?/
   http!: HandleResponse
 
@@ -131,7 +131,7 @@ class Route<ContextT extends any = ContextDefaults> {
     message: '',
     params: {},
     body: {},
-  } as ContextDefaults & ContextT
+  } as RouteContextDefaults & ContextT
 
   constructor() {}
 
@@ -150,40 +150,40 @@ class Route<ContextT extends any = ContextDefaults> {
     return this
   }
 
-  method(m: Method) {
-    this._method = m.toUpperCase() as Method
+  method(m: RouteMethod) {
+    this._method = m.toUpperCase() as RouteMethod
     return this
   }
 
-  path(path: Path, name?: string) {
+  path(path: RoutePath, name?: string) {
     this._pathList.push({ checker: path, name })
     if (name) this.ctx.params[name] = ''
     return this
   }
 
   check<T = {}>(
-    callback: Middware<ContextT & T>,
+    callback: RouteMiddware<ContextT & T>,
     prepend?: boolean
-  ): Route<ContextDefaults & ContextT & T> {
+  ): Route<RouteContextDefaults & ContextT & T> {
     if (!prepend) {
       this._checkList.push(callback)
     } else {
       this._checkList.unshift(callback)
     }
-    return this as Route<ContextDefaults & ContextT & T>
+    return this as Route<RouteContextDefaults & ContextT & T>
   }
 
   action<T = {}>(
-    callback: Middware<ContextT & T>
-  ): Route<ContextDefaults & ContextT & T> {
+    callback: RouteMiddware<ContextT & T>
+  ): Route<RouteContextDefaults & ContextT & T> {
     this._action = callback
-    return this as Route<ContextDefaults & ContextT & T>
+    return this as Route<RouteContextDefaults & ContextT & T>
   }
 
   async init(
     req: VercelRequest,
     res: VercelResponse
-  ): Promise<{ matched: boolean; ctx: ContextDefaults }> {
+  ): Promise<{ matched: boolean; ctx: RouteContextDefaults }> {
     this.ctx.req = req
     this.ctx.res = res
 
@@ -263,7 +263,7 @@ class Route<ContextT extends any = ContextDefaults> {
   }
 }
 
-type Method =
+export type RouteMethod =
   | 'GET'
   | 'DELETE'
   | 'HEAD'
@@ -275,7 +275,7 @@ type Method =
   | 'LINK'
   | 'UNLINK'
 
-type ContextDefaults = {
+export type RouteContextDefaults = {
   req: VercelRequest
   res: VercelResponse
   params: Record<string, string>
@@ -285,8 +285,10 @@ type ContextDefaults = {
   customBody?: any
 }
 
-type Awaitable<T> = Promise<T> | T
+export type Awaitable<T> = Promise<T> | T
 
-type Middware<T> = (ctx: ContextDefaults & T) => Awaitable<false | any>
+export type RouteMiddware<T> = (
+  ctx: RouteContextDefaults & T
+) => Awaitable<false | any>
 
-type Path = string | string[] | RegExp
+export type RoutePath = string | string[] | RegExp
