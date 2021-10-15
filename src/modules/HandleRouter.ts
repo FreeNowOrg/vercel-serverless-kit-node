@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { HandleResponse } from '..'
 
-export class HandleRouter<ContextT extends any = RouteContextDefaults> {
+export class HandleRouter<ContextT extends unknown = RouteContextDefaults> {
   private _routeList: Route[] = []
   init: (req: VercelRequest, res: VercelResponse) => Promise<void>
   private handleSend: (ctx: RouteContextDefaults & RouteContextDefaults) => any
@@ -117,7 +117,7 @@ export class HandleRouter<ContextT extends any = RouteContextDefaults> {
   }
 }
 
-export class Route<ContextT extends any = RouteContextDefaults> {
+export class Route<ContextT extends unknown = RouteContextDefaults> {
   private _method: RouteMethod = 'GET'
   private _pathList: { name?: string; checker: RoutePath }[] = []
   private _action: RouteMiddware<any> | undefined
