@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { HandleResponse } from '..'
 
-export class HandeleRouter<ContextT = ContextDefaults> {
+export class HandeleRouter<ContextT extends any = ContextDefaults> {
   private _routeList: Route[] = []
   init: (req: VercelRequest, res: VercelResponse) => Promise<void>
   private handleSend: (ctx: ContextDefaults & ContextDefaults) => any
@@ -21,7 +21,7 @@ export class HandeleRouter<ContextT = ContextDefaults> {
       this._runInit(req, res)
 
     // Default handlers
-    this.handleSend = ctx => {
+    this.handleSend = (ctx) => {
       this.http.send(
         ctx.status || 200,
         ctx.message || 'ok',
@@ -42,8 +42,8 @@ export class HandeleRouter<ContextT = ContextDefaults> {
     }
   }
 
-  addRoute(): Route<ContextDefaults & ContextDefaults> {
-    const route = new Route()
+  addRoute(): Route<ContextDefaults & ContextT> {
+    const route: Route<ContextDefaults & ContextT> = new Route()
     route.endpoint(this._endpoint)
     this._routeList.unshift(route)
     return route
@@ -62,7 +62,7 @@ export class HandeleRouter<ContextT = ContextDefaults> {
 
     let isMatched = false
     for (const route of this._routeList) {
-      this._beforeList.forEach(i => route.check(i, true))
+      this._beforeList.forEach((i) => route.check(i, true))
 
       const { matched, ctx } = await route.init(req, res)
 
@@ -106,14 +106,14 @@ export class HandeleRouter<ContextT = ContextDefaults> {
     callback: Middware<ContextT & T>
   ): HandeleRouter<ContextDefaults & ContextT & T> {
     this._beforeList.unshift(callback)
-    return this
+    return this as HandeleRouter<ContextDefaults & ContextT & T>
   }
 
   afterEach<T = {}>(
     callback: Middware<ContextT & T>
   ): HandeleRouter<ContextDefaults & ContextT & T> {
     this._afterList.push(callback)
-    return this
+    return this as HandeleRouter<ContextDefaults & ContextT & T>
   }
 }
 
