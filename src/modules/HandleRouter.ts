@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { HandleResponse } from '..'
 
-export class HandeleRouter<ContextT extends any = RouteContextDefaults> {
+export class HandleRouter<ContextT extends any = RouteContextDefaults> {
   private _routeList: Route[] = []
   init: (req: VercelRequest, res: VercelResponse) => Promise<void>
   private handleSend: (ctx: RouteContextDefaults & RouteContextDefaults) => any
@@ -104,16 +104,16 @@ export class HandeleRouter<ContextT extends any = RouteContextDefaults> {
 
   beforeEach<T = {}>(
     callback: RouteMiddware<ContextT & T>
-  ): HandeleRouter<RouteContextDefaults & ContextT & T> {
+  ): HandleRouter<RouteContextDefaults & ContextT & T> {
     this._beforeList.unshift(callback)
-    return this as HandeleRouter<RouteContextDefaults & ContextT & T>
+    return this as HandleRouter<RouteContextDefaults & ContextT & T>
   }
 
   afterEach<T = {}>(
     callback: RouteMiddware<ContextT & T>
-  ): HandeleRouter<RouteContextDefaults & ContextT & T> {
+  ): HandleRouter<RouteContextDefaults & ContextT & T> {
     this._afterList.push(callback)
-    return this as HandeleRouter<RouteContextDefaults & ContextT & T>
+    return this as HandleRouter<RouteContextDefaults & ContextT & T>
   }
 }
 
