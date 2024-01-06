@@ -3,7 +3,10 @@
   "version": "0.3.0",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
-  "type": "commonjs",
+  "type": "module",
+  "files": [
+    "lib"
+  ],
   "repository": "git@github.com:FreeNowOrg/vercel-serverless-kit-node.git",
   "author": "机智的小鱼君 <dragon-fish@qq.com>",
   "license": "Apache-2.0",
