@@ -1,21 +1,24 @@
 {
   "name": "serverless-kit",
   "version": "0.3.1",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "files": [
+    "dist",
     "lib"
   ],
   "repository": "git@github.com:FreeNowOrg/vercel-serverless-kit-node.git",
   "author": "机智的小鱼君 <dragon-fish@qq.com>",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "rimraf lib && tsc"
+    "build": "npm run clear && tsup",
+    "clear": "rimraf lib/** dist/**"
   },
   "devDependencies": {
     "@vercel/node": "^3.0.15",
     "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
     "typescript": "^5.3.3"
   },
   "dependencies": {
